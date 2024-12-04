@@ -1,0 +1,12 @@
+{
+    "name": "Rust Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "extensions": [
+            "rust-lang.rust",
+            "matklad.rust-analyzer"
+        ]
+    }
+}
