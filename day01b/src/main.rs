@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-fn sim(l: &Vec<i64>, r: &Vec<i64>) -> i64 {
+/// Calculate a total similarity score by adding up each number in the left list
+/// after multiplying it by the number of times that number appears in the right list.
+fn similarity(l: &Vec<i64>, r: &Vec<i64>) -> i64 {
     let mut r_counts = HashMap::new();
     for i in r.iter() {
         *r_counts.entry(i).or_insert(0) += 1;
@@ -19,5 +21,5 @@ fn main() {
         a.push(atoi::atoi::<i64>(&line[0..num_len]).unwrap());
         b.push(atoi::atoi::<i64>(&line[num_len + 3..]).unwrap());
     }
-    println!("{}", sim(&a, &b));
+    println!("{}", similarity(&a, &b));
 }
