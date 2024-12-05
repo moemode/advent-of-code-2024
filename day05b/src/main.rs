@@ -77,6 +77,14 @@ fn update_obeys_deps(update: &Vec<i64>, dependents: &HashMap<i64, HashSet<i64>>)
     true
 }
 
+/// Performs a depth-first search on the graph.
+///
+/// # Arguments
+///
+/// * `g` - The graph represented as a `HashMap`.
+/// * `node` - The starting node for the DFS.
+/// * `unvisited` - A mutable reference to a `HashSet` of unvisited nodes.
+/// * `reversed_finishing` - A mutable reference to a `VecDeque` to store the nodes in reverse finishing order.
 fn dfs(
     g: &HashMap<i64, HashSet<i64>>,
     node: i64,
@@ -94,6 +102,16 @@ fn dfs(
     reversed_finishing.push_front(node);
 }
 
+/// Performs a full depth-first search on the graph.
+///
+/// # Arguments
+///
+/// * `g` - The graph represented as a `HashMap`.
+///
+/// # Returns
+///
+/// A `VecDeque` containing the nodes in reverse finishing order.
+/// When the graph is acyclic, this is a topological order.
 fn full_dfs(g: &HashMap<i64, HashSet<i64>>) -> VecDeque<i64> {
     let mut reversed_finishing = VecDeque::new();
     let mut unvisited: HashSet<i64> = g.keys().cloned().collect();
@@ -103,6 +121,16 @@ fn full_dfs(g: &HashMap<i64, HashSet<i64>>) -> VecDeque<i64> {
     reversed_finishing
 }
 
+/// Constructs a subgraph containing only the specified nodes.
+///
+/// # Arguments
+///
+/// * `g` - The original graph represented as a `HashMap`.
+/// * `nodes` - A vector of nodes to include in the subgraph.
+///
+/// # Returns
+///
+/// A `HashMap` representing the subgraph.
 fn subgraph(g: &HashMap<i64, HashSet<i64>>, nodes: &Vec<i64>) -> HashMap<i64, HashSet<i64>> {
     let mut result = HashMap::new();
     for node in nodes {
