@@ -5,3 +5,6 @@ edition = "2021"
 
 [lib]
 path = "src/main.rs"
+
+[dependencies]
+itertools = "0.10.0"

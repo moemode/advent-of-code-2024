@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Instant};
+use itertools::Itertools;
 
 // the grid dimensions, the start position and the positions of obstacles
 fn parse_input(input: &[u8]) -> ((i64, i64), (i64, i64), HashSet<(i64, i64)>) {
@@ -41,18 +42,33 @@ fn walk_straight(
     width: i64,
     height: i64,
 ) -> Option<(i64, i64)> {
-    let mut position = start;
-    loop {
-        let next = (position.0 + dir.0, position.1 + dir.1);
-        if !is_inbounds(next, width, height) {
-            return None;
+    let mut current_pos = start;
+    // implement using walk_iter
+    for (prev, next) in walk_iter(start, dir, obstacles, width, height).tuple_windows() {
+        if prev.0 == next.0 {
+            return Some(prev.0)
         }
-        if obstacles.contains(&next) {
-            return Some(position);
-        }
-        position = next;
     }
+    None
 }
+
+fn step(pos: (i64, i64), dir: (i64, i64), obstacles: &HashSet<(i64, i64)>, width: i64, height: i64) -> Option<((i64, i64), (i64, i64))> {
+    let next = (pos.0 + dir.0, pos.1 + dir.1);
+    if obstacles.contains(&next) {
+        return Some((pos, turn_right(dir)));
+    }
+    if is_inbounds(next, width, height) {
+        return Some((next, dir));
+    }
+    return None;
+}
+
+fn walk_iter(start: (i64, i64), dir: (i64, i64), obstacles: &HashSet<(i64, i64)>, width: i64, height: i64) -> impl Iterator<Item = ((i64, i64), (i64, i64))> + '_ {
+    std::iter::successors(Some((start, dir)), move |&(pos, dir)| {
+        step(pos, dir, obstacles, width, height)
+    })
+}
+
 
 /// Given start position and direction, walk until cycle is detected or out of bounds
 /// If cycle is detected returned position is in cycle
@@ -116,6 +132,7 @@ fn obstacles_for_cycle(
 fn main() {
     let bytes = include_bytes!("../input.txt");
     let (grid_dimensions, start_position, obstacles) = parse_input(bytes);
+    let start_time = Instant::now();
     let cycle_obstacles = obstacles_for_cycle(
         start_position,
         (0, -1),
@@ -123,7 +140,9 @@ fn main() {
         grid_dimensions.0,
         grid_dimensions.1,
     );
-    println!("{:?}", cycle_obstacles);
+    let duration = start_time.elapsed();
+
+    println!("Time elapsed in obstacles_for_cycle() is: {:?}", duration);
     println!("{}", cycle_obstacles.len());
 }
 
