@@ -1,21 +1,21 @@
 use std::collections::HashSet;
 
 // the grid dimensions, the start position and the positions of obstacles
-fn parse_input(input: &[u8]) -> ((u64, u64), (u64, u64), HashSet<(u64, u64)>) {
+fn parse_input(input: &[u8]) -> ((i64, i64), (i64, i64), HashSet<(i64, i64)>) {
     let mut obstacles = HashSet::new();
     let mut start_position = (0, 0);
     let mut width = 0;
     let mut height = 0;
-    width = input.split(|&b| b == b'\n').next().unwrap().len() as u64;
+    width = input.split(|&b| b == b'\n').next().unwrap().len() as i64;
     for (y, line) in input.split(|&b| b == b'\n').enumerate() {
         height += 1;
         for (x, &ch) in line.iter().enumerate() {
             match ch {
                 b'#' => {
-                    obstacles.insert((x as u64, y as u64));
+                    obstacles.insert((x as i64, y as i64));
                 }
                 b'^' => {
-                    start_position = (x as u64, y as u64);
+                    start_position = (x as i64, y as i64);
                 }
                 _ => {}
             }
@@ -109,7 +109,15 @@ fn obstacles_for_cycle(
 fn main() {
     let bytes = include_bytes!("../input.txt");
     let (grid_dimensions, start_position, obstacles) = parse_input(bytes);
-    //println!("{:?}", obstacles_for_cycle(start_position, (0, -1), obstacles, grid_dimensions.0, grid_dimensions.1));
+    let cycle_obstacles = obstacles_for_cycle(
+        start_position,
+        (0, -1),
+        obstacles,
+        grid_dimensions.0,
+        grid_dimensions.1,
+    );
+    println!("{:?}", cycle_obstacles);
+    println!("{}", cycle_obstacles.len());
 }
 
 #[cfg(test)]
