@@ -75,22 +75,22 @@ fn walk_iter(start: (i64, i64), dir: (i64, i64), obstacles: &HashSet<(i64, i64)>
 /// If out of bounds returned position is position from which one went straight out of bounds
 fn walk(
     start: (i64, i64),
-    mut dir: (i64, i64),
+    dir: (i64, i64),
     obstacles: &HashSet<(i64, i64)>,
     width: i64,
     height: i64,
-) -> ((i64, i64), bool) {
-    let mut position = start;
+) -> bool {
     let mut corner_points = HashSet::new();
-    while let Some(next) = walk_straight(position, dir, obstacles, width, height) {
-        if corner_points.contains(&(position, dir)) {
-            return (position, true);
+    for (prev, next) in walk_iter(start, dir, obstacles, width, height).tuple_windows() {
+        let is_corner = prev.0 == next.0;
+        if is_corner {
+            if corner_points.contains(&prev) {
+                return true;
+            }
+            corner_points.insert(prev);
         }
-        corner_points.insert((position, dir));
-        position = next;
-        dir = turn_right(dir);
     }
-    (position, false)
+    false
 }
 
 /// Given start position and direction, compute where along the way exactly one obstacle
@@ -117,7 +117,7 @@ fn obstacles_for_cycle(
                 // optimization: if we already visited position with dir its a cycle
                 // but there are other ways in which one can get cycle
                 obstacles.insert(in_front);
-                let (_, cycle) = walk(position, turn_right(dir), &obstacles, width, height);
+                let cycle = walk(position, turn_right(dir), &obstacles, width, height);
                 obstacles.remove(&in_front);
                 if cycle {
                     obstacles_for_cycle.insert(in_front);
