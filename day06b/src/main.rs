@@ -91,17 +91,19 @@ fn obstacles_for_cycle(
         let in_front = (position.0 + dir.0, position.1 + dir.1);
         if obstacles.contains(&in_front) {
             dir = turn_right(dir);
-        } else if !visited.contains(&in_front) {
-            // optimization: if we already visited position with dir its a cycle
-            // but there are other ways in which one can get cycle
-            obstacles.insert(in_front);
-            let (_, cycle) = walk(position, turn_right(dir), &obstacles, width, height);
-            obstacles.remove(&in_front);
-            if cycle {
-                obstacles_for_cycle.insert(in_front);
+        } else {
+            if !visited.contains(&in_front) {
+                // optimization: if we already visited position with dir its a cycle
+                // but there are other ways in which one can get cycle
+                obstacles.insert(in_front);
+                let (_, cycle) = walk(position, turn_right(dir), &obstacles, width, height);
+                obstacles.remove(&in_front);
+                if cycle {
+                    obstacles_for_cycle.insert(in_front);
+                }
             }
-        }
-        position = (position.0 + dir.0, position.1 + dir.1);
+            position = (position.0 + dir.0, position.1 + dir.1);   
+        } 
     }
     return obstacles_for_cycle;
 }
