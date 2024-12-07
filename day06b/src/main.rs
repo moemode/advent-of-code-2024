@@ -4,9 +4,8 @@ use std::collections::HashSet;
 fn parse_input(input: &[u8]) -> ((i64, i64), (i64, i64), HashSet<(i64, i64)>) {
     let mut obstacles = HashSet::new();
     let mut start_position = (0, 0);
-    let mut width = 0;
+    let width = input.split(|&b| b == b'\n').next().unwrap().len() as i64;
     let mut height = 0;
-    width = input.split(|&b| b == b'\n').next().unwrap().len() as i64;
     for (y, line) in input.split(|&b| b == b'\n').enumerate() {
         height += 1;
         for (x, &ch) in line.iter().enumerate() {
@@ -23,6 +22,7 @@ fn parse_input(input: &[u8]) -> ((i64, i64), (i64, i64), HashSet<(i64, i64)>) {
     }
     ((width, height), start_position, obstacles)
 }
+
 
 fn turn_right(dir: (i64, i64)) -> (i64, i64) {
     (-dir.1, dir.0)
@@ -54,6 +54,9 @@ fn walk_straight(
     }
 }
 
+/// Given start position and direction, walk until cycle is detected or out of bounds
+/// If cycle is detected returned position is in cycle
+/// If out of bounds returned position is position from which one went straight out of bounds
 fn walk(
     start: (i64, i64),
     mut dir: (i64, i64),
@@ -74,6 +77,8 @@ fn walk(
     (position, false)
 }
 
+/// Given start position and direction, compute where along the way exactly one obstacle
+/// could be placed to create lead to a cycle
 fn obstacles_for_cycle(
     start: (i64, i64),
     dir: (i64, i64),
