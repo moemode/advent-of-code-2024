@@ -1,5 +1,5 @@
-use std::{collections::HashSet, time::Instant};
 use itertools::Itertools;
+use std::{collections::HashSet, time::Instant};
 
 // the grid dimensions, the start position and the positions of obstacles
 fn parse_input(input: &[u8]) -> ((i64, i64), (i64, i64), HashSet<(i64, i64)>) {
@@ -24,7 +24,6 @@ fn parse_input(input: &[u8]) -> ((i64, i64), (i64, i64), HashSet<(i64, i64)>) {
     ((width, height), start_position, obstacles)
 }
 
-
 fn turn_right(dir: (i64, i64)) -> (i64, i64) {
     (-dir.1, dir.0)
 }
@@ -33,26 +32,13 @@ fn is_inbounds(pos: (i64, i64), width: i64, height: i64) -> bool {
     pos.0 >= 0 && pos.0 < width && pos.1 >= 0 && pos.1 < height
 }
 
-/// given starting point and direction compute position where one hits next obstacle
-/// None if out of bounds
-fn walk_straight(
-    start: (i64, i64),
+fn step(
+    pos: (i64, i64),
     dir: (i64, i64),
     obstacles: &HashSet<(i64, i64)>,
     width: i64,
     height: i64,
-) -> Option<(i64, i64)> {
-    let mut current_pos = start;
-    // implement using walk_iter
-    for (prev, next) in walk_iter(start, dir, obstacles, width, height).tuple_windows() {
-        if prev.0 == next.0 {
-            return Some(prev.0)
-        }
-    }
-    None
-}
-
-fn step(pos: (i64, i64), dir: (i64, i64), obstacles: &HashSet<(i64, i64)>, width: i64, height: i64) -> Option<((i64, i64), (i64, i64))> {
+) -> Option<((i64, i64), (i64, i64))> {
     let next = (pos.0 + dir.0, pos.1 + dir.1);
     if obstacles.contains(&next) {
         return Some((pos, turn_right(dir)));
@@ -63,12 +49,17 @@ fn step(pos: (i64, i64), dir: (i64, i64), obstacles: &HashSet<(i64, i64)>, width
     return None;
 }
 
-fn walk_iter(start: (i64, i64), dir: (i64, i64), obstacles: &HashSet<(i64, i64)>, width: i64, height: i64) -> impl Iterator<Item = ((i64, i64), (i64, i64))> + '_ {
+fn walk_iter(
+    start: (i64, i64),
+    dir: (i64, i64),
+    obstacles: &HashSet<(i64, i64)>,
+    width: i64,
+    height: i64,
+) -> impl Iterator<Item = ((i64, i64), (i64, i64))> + '_ {
     std::iter::successors(Some((start, dir)), move |&(pos, dir)| {
         step(pos, dir, obstacles, width, height)
     })
 }
-
 
 /// Given start position and direction, walk until cycle is detected or out of bounds
 /// If cycle is detected returned position is in cycle
@@ -77,6 +68,7 @@ fn walk(
     start: (i64, i64),
     dir: (i64, i64),
     obstacles: &HashSet<(i64, i64)>,
+    extra_obstacle: Option<(i64, i64)>,
     width: i64,
     height: i64,
 ) -> bool {
@@ -93,7 +85,7 @@ fn walk(
     false
 }
 
-/// Given start position and direction, compute where along the way exactly one obstacle
+/// Given start position and direction, walk and compute where along the way exactly one obstacle
 /// could be placed to create lead to a cycle
 fn obstacles_for_cycle(
     start: (i64, i64),
@@ -104,27 +96,18 @@ fn obstacles_for_cycle(
 ) -> HashSet<(i64, i64)> {
     let mut visited = HashSet::new();
     let mut obstacles_for_cycle = HashSet::new();
-    let mut position = start;
     let mut obstacles = obstacles;
-    let mut dir = dir;
-    while is_inbounds(position, width, height) {
+    for (position, dir) in walk_iter(start, dir, &obstacles, width, height) {
         visited.insert(position);
         let in_front = (position.0 + dir.0, position.1 + dir.1);
-        if obstacles.contains(&in_front) {
-            dir = turn_right(dir);
-        } else {
-            if !visited.contains(&in_front) {
-                // optimization: if we already visited position with dir its a cycle
-                // but there are other ways in which one can get cycle
-                obstacles.insert(in_front);
-                let cycle = walk(position, turn_right(dir), &obstacles, width, height);
-                obstacles.remove(&in_front);
-                if cycle {
-                    obstacles_for_cycle.insert(in_front);
-                }
+        if !visited.contains(&in_front) {
+            // optimization: if we already visited position with dir its a cycle
+            // but there are other ways in which one can get cycle
+            let cycle = walk(position, turn_right(dir), &obstacles, Some(in_front), width, height);
+            if cycle {
+                obstacles_for_cycle.insert(in_front);
             }
-            position = (position.0 + dir.0, position.1 + dir.1);   
-        } 
+        }
     }
     return obstacles_for_cycle;
 }
