@@ -24,22 +24,28 @@ fn parse_input(input: &str) -> (HashMap<char, HashSet<Position>>, i64, i64) {
     (antennas, width, height)
 }
 
+fn trace_line(
+    start: Position,
+    direction: (i64, i64),
+    positions: &mut HashSet<Position>,
+    width: i64,
+    height: i64,
+) {
+    let mut current = start;
+    while is_inbounds(current, width, height) {
+        positions.insert(current);
+        current = (current.0 + direction.0, current.1 + direction.1);
+    }
+}
+
 fn antinodes(a0: Position, a1: Position, width: i64, height: i64) -> HashSet<Position> {
     let mut antis = HashSet::new();
     let diff = (a1.0 - a0.0, a1.1 - a0.1);
     let gcd = diff.0.abs().gcd(&diff.1.abs());
     let step_x = diff.0 / gcd;
     let step_y = diff.1 / gcd;
-    let mut current = a0;
-    while is_inbounds(current, width, height) {
-        antis.insert(current);
-        current = (current.0 + step_x, current.1 + step_y);
-    }
-    let mut current = a0;
-    while is_inbounds(current, width, height) {
-        antis.insert(current);
-        current = (current.0 - step_x, current.1 - step_y);
-    }
+    trace_line(a0, (step_x, step_y), &mut antis, width, height);
+    trace_line(a0, (-step_x, -step_y), &mut antis, width, height);
     antis
 }
 
@@ -96,6 +102,10 @@ mod tests {
         let (antennas, width, height) = parse_input(&input);
         let antis = find_antinodes(&antennas, width, height);
         let expected_len = 1277; // Replace with the actual expected result for this input.
-        assert_eq!(antis.len(), expected_len, "Antinode count does not match expected");
+        assert_eq!(
+            antis.len(),
+            expected_len,
+            "Antinode count does not match expected"
+        );
     }
 }
