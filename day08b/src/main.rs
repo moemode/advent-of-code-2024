@@ -33,12 +33,12 @@ fn antinodes(a0: Position, a1: Position, width: i64, height: i64) -> HashSet<Pos
     let mut current = a0;
     while is_inbounds(current, width, height) {
         antis.insert(current);
-        current = (current.0 + step_x, current.0 + step_y);
+        current = (current.0 + step_x, current.1 + step_y);
     }
     let mut current = a0;
     while is_inbounds(current, width, height) {
         antis.insert(current);
-        current = (current.0 - step_x, current.0 - step_y);
+        current = (current.0 - step_x, current.1 - step_y);
     }
     antis
 }
@@ -74,9 +74,28 @@ fn main() -> io::Result<()> {
     let (antennas, width, height) = parse_input(&input);
     let start_time = Instant::now();
     let antis = find_antinodes(&antennas, width, height);
-    println!("{:?}", antis);
-    println!("Number of unique antinodes: {}", antis.len());
     let duration = start_time.elapsed();
+    println!("Number of unique antinodes: {}", antis.len());
     println!("Time taken: {:?}", duration);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_antinodes() {
+        let file = File::open("input.txt").unwrap();
+        let reader = BufReader::new(file);
+        let input = reader
+            .lines()
+            .map(|line| line.unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let (antennas, width, height) = parse_input(&input);
+        let antis = find_antinodes(&antennas, width, height);
+        let expected_len = 1277; // Replace with the actual expected result for this input.
+        assert_eq!(antis.len(), expected_len, "Antinode count does not match expected");
+    }
 }
