@@ -54,7 +54,7 @@ fn blink_many(x: &VecDeque<u64>, k: u64) -> u64 {
 fn main() {
     let bytes = include_bytes!("../input.txt");
     let numbers = parse_input(bytes).unwrap();
-    println!{"{}", blink_many(&numbers, 25)};
+    println!{"{}", blink_many(&numbers, 75)};
 }
 
 #[cfg(test)]
