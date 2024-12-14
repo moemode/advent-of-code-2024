@@ -4,7 +4,6 @@ use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::str::FromStr;
-use std::{collections::VecDeque, error, vec};
 
 struct Grid {
     width: usize,
@@ -63,7 +62,6 @@ impl FromStr for Grid {
         Ok(Grid::new(width, height, data))
     }
 }
-
 
 /// Measures the plots in the first row of a grid.
 ///
@@ -201,16 +199,16 @@ fn calculate_discontinued_value(
 /// * `prev` - Previous row of characters.
 /// * `prev_plot_ids` - Plot IDs of the previous row. Must use ids in the range 0..prev_plot_ids.len().
 /// * `prev_plot_stats` - Plot statistics for the ids in prev_plot_ids.
-/// 
+///
 /// # Example
 /// Say one call was already made for top two rows. The return values and input for the next call would be:
 /// A A A
-/// A B A <- prev 
+/// A B A <- prev
 /// C C C <- curr
 /// prev_plot_ids = [0, 1, 0], because the A's are connected to the A's in the row above
-/// prev_plot_stats = {0: (5, 6), 1: (1, 4)} because the A plot has size 5 and perimeter 6 and the 
+/// prev_plot_stats = {0: (5, 6), 1: (1, 4)} because the A plot has size 5 and perimeter 6 and the
 /// B plot has size 1 and perimeter 4 when considering everything up to the current row.
-/// 
+///
 /// # Returns
 /// A tuple containing:
 /// * Plot IDs for the current row.
@@ -244,7 +242,8 @@ fn measure_row(
         }
         // Update the connected rectangles in the row above
         relabel(prev_plot_ids, &connected, id);
-        let (total_size, total_perim) = calculate_plot_stats(curr, prev, left, right, &connected, prev_plot_stats);
+        let (total_size, total_perim) =
+            calculate_plot_stats(curr, prev, left, right, &connected, prev_plot_stats);
         discontinued = discontinued.difference(&connected).cloned().collect();
         plot_stats.insert(id, (total_size, total_perim));
         prev_plot_stats.insert(id, (total_size, total_perim));
@@ -255,7 +254,6 @@ fn measure_row(
     let plot_stats = normalize_plot_stats(plot_stats, min_id);
     (plot_ids, plot_stats, discontinued_value)
 }
-
 
 fn price_map(grid: &Grid) -> usize {
     let mut value = 0;
@@ -303,13 +301,10 @@ mod tests {
 
     #[test]
     fn price_map_test() {
-        let rows = vec![
-            vec!['A', 'B', 'B', 'A'],
-            vec!['A', 'A', 'A', 'A'],
-        ];
+        let rows = vec![vec!['A', 'B', 'B', 'A'], vec!['A', 'A', 'A', 'A']];
         let g = Grid::new_from_vecs(4, 2, rows);
         let price = price_map(&g);
-        assert_eq!(price, 8 + 6*8);
+        assert_eq!(price, 8 + 6 * 8);
     }
 
     #[test]
@@ -329,12 +324,9 @@ mod tests {
     #[test]
     fn price_map_test_from_file() {
         // Read the input file
-        let input = fs::read_to_string("input.txt")
-            .expect("Failed to read input file");
+        let input = fs::read_to_string("input.txt").expect("Failed to read input file");
         // Parse the input into a grid
-        let rows: Vec<Vec<char>> = input.lines()
-            .map(|line| line.chars().collect())
-            .collect();
+        let rows: Vec<Vec<char>> = input.lines().map(|line| line.chars().collect()).collect();
         let width = rows[0].len();
         let height = rows.len();
         let g = Grid::new_from_vecs(width, height, rows);
@@ -367,10 +359,11 @@ mod tests {
         prev_plot_stats.insert(0, (1, 4));
         prev_plot_stats.insert(1, (2, 4));
         prev_plot_stats.insert(2, (1, 4));
-        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        let (plot_ids, plot_stats, total_discontinued) =
+            measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
         assert_eq!(plot_ids, vec![0, 0, 0, 0]);
         assert_eq!(plot_stats.get(&0), Some(&(6, 8)));
-        assert_eq!(total_discontinued, 4*2);
+        assert_eq!(total_discontinued, 4 * 2);
     }
 
     #[test]
@@ -384,7 +377,8 @@ mod tests {
         prev_plot_stats.insert(2, (3, 4));
         prev_plot_stats.insert(3, (1, 4));
         prev_plot_stats.insert(4, (1, 4));
-        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        let (plot_ids, plot_stats, total_discontinued) =
+            measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
         assert_eq!(plot_ids, vec![0, 0, 0, 1, 0, 0, 0]);
         assert_eq!(plot_stats.get(&0), Some(&(11, 16)));
         assert_eq!(plot_stats.get(&1), Some(&(1, 4)));
@@ -400,7 +394,8 @@ mod tests {
         prev_plot_stats.insert(0, (3, 4));
         prev_plot_stats.insert(1, (2, 4));
         prev_plot_stats.insert(2, (1, 4));
-        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        let (plot_ids, plot_stats, total_discontinued) =
+            measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
         assert_eq!(plot_ids, vec![0, 0, 0, 0, 0, 0]);
         assert_eq!(plot_stats.get(&0), Some(&(10, 8)));
         assert_eq!(total_discontinued, 8);
@@ -414,9 +409,10 @@ mod tests {
         let mut prev_plot_stats = HashMap::new();
         prev_plot_stats.insert(0, (14, 8));
         prev_plot_stats.insert(1, (2, 4));
-        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        let (plot_ids, plot_stats, total_discontinued) =
+            measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
         assert_eq!(plot_ids, vec![0, 0, 0, 1, 0, 0]);
-        assert_eq!(plot_stats.get(&0), Some(&(14+5, 10)));
+        assert_eq!(plot_stats.get(&0), Some(&(14 + 5, 10)));
         assert_eq!(plot_stats.get(&1), Some(&(3, 6)));
         assert_eq!(total_discontinued, 0);
     }
@@ -428,7 +424,8 @@ mod tests {
         let mut prev_plot_ids = vec![0, 0, 0, 0, 0, 0];
         let mut prev_plot_stats = HashMap::new();
         prev_plot_stats.insert(0, (6, 4));
-        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        let (plot_ids, plot_stats, total_discontinued) =
+            measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
         assert_eq!(plot_ids, vec![0, 0, 0, 1, 1, 0]);
         assert_eq!(plot_stats.get(&0), Some(&(10, 8)));
         assert_eq!(plot_stats.get(&1), Some(&(2, 4)));
@@ -451,7 +448,6 @@ mod tests {
         assert_eq!(plot_stats.get(&0), Some(&(4, 4)));
         assert_eq!(plot_stats.get(&1), Some(&(1, 4)));
         assert_eq!(plot_stats.get(&2), Some(&(1, 4)));
-
     }
 
     #[test]
@@ -474,7 +470,6 @@ mod tests {
         assert_eq!(plot_stats.get(&2), Some(&(1, 4)));
         assert_eq!(plot_stats.get(&3), Some(&(1, 4)));
     }
-
 }
 
 fn main() {
