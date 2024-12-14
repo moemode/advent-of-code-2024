@@ -21,6 +21,15 @@ impl Grid {
         }
     }
 
+    fn new_from_vecs(width: usize, height: usize, data: Vec<Vec<char>>) -> Grid {
+        let data: Vec<char> = data.into_iter().flatten().collect();
+        Grid {
+            width,
+            height,
+            data,
+        }
+    }
+
     fn adjacent(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
         let mut result = Vec::new();
         if x > 0 {
@@ -55,53 +64,6 @@ impl FromStr for Grid {
     }
 }
 
-fn perimeter_increase(grid: &Grid, x: usize, y: usize) -> usize {
-    4 - grid
-        .adjacent(x, y)
-        .iter()
-        .filter(|(xn, yn)| grid.get(x, y) == grid.get(*xn, *yn))
-        .count()
-}
-
-fn measure_plot(
-    grid: &Grid,
-    x: usize,
-    y: usize,
-    visited: &mut HashSet<(usize, usize)>,
-) -> (usize, usize) {
-    visited.insert((x, y));
-    let mut size = 1;
-    let mut perim = perimeter_increase(grid, x, y);
-    for (xn, yn) in grid.adjacent(x, y) {
-        if visited.contains(&(xn, yn)) || grid.get(x, y) != grid.get(xn, yn) {
-            continue;
-        }
-        let (size_inc, perim_inc) = measure_plot(grid, xn, yn, visited);
-        size += size_inc;
-        perim += perim_inc;
-    }
-    return (size, perim);
-}
-
-fn measure_map(grid: &Grid) -> Vec<(usize, usize)> {
-    let mut visited = HashSet::new();
-    let mut result = Vec::new();
-    for y in 0..grid.height {
-        for x in 0..grid.width {
-            if visited.contains(&(x, y)) {
-                continue;
-            }
-            let (size, perim) = measure_plot(grid, x, y, &mut visited);
-            result.push((size, perim));
-        }
-    }
-    result
-}
-
-fn price_map(grid: &Grid) -> usize {
-    let measures = measure_map(grid);
-    measures.iter().map(|(size, perim)| size * perim).sum()
-}
 
 /// Measures the plots in the first row of a grid.
 ///
@@ -194,19 +156,27 @@ fn measure_row(
         let mut connected = HashSet::new();
         let plot_char = curr[left];
         while right < curr.len() && curr[right] == plot_char {
-            plot_ids[right] = unassigned_id;
+            //plot_ids[right] = unassigned_id;
             if prev[right] == plot_char {
                 connected.insert(prev_plot_ids[right]);
             }
             right += 1;
         }
+        // from connected keep the ones which are in plot_stats.keys
+        let relabeled: Vec<usize> = connected.intersection(&plot_stats.keys().cloned().collect()).cloned().collect();
+        let id = if relabeled.len() > 0 {
+            *relabeled.iter().next().unwrap()
+        } else {
+            unassigned_id
+        };
+        for i in left..right {
+            plot_ids[i] = id;
+        }
         // get the new stats and relabel the connected rectangles in prev
         let mut total_size = right - left;
         let rightmost = right - 1;
         let mut total_perim = additional_perim_left(curr, prev, left);
-        if rightmost != left {
-            total_perim += additional_perim_right(curr, prev, rightmost);
-        }
+        total_perim += additional_perim_right(curr, prev, rightmost);
         for pid in &connected {
             let stats = prev_plot_stats.remove(&pid);
             if let Some((size, perim)) = stats {
@@ -215,17 +185,19 @@ fn measure_row(
             }
         }
         discontinued = discontinued.difference(&connected).cloned().collect();
-        plot_stats.insert(unassigned_id, (total_size, total_perim));
-        prev_plot_stats.insert(unassigned_id, (total_size, total_perim));
+        plot_stats.insert(id, (total_size, total_perim));
+        prev_plot_stats.insert(id, (total_size, total_perim));
         relabel(prev_plot_ids, &connected, unassigned_id);
         unassigned_id += 1;
         left = right;
     }
-    let total_discontinued = discontinued
+    let discontinued_value = discontinued
         .iter()
         .map(|pid| prev_plot_stats.get(pid).unwrap())
         .map(|(size, perim)| size * perim)
         .sum();
+    // print out all discontinued
+    dbg!(&discontinued.iter().map(|pid| prev_plot_stats.get(pid).unwrap()).collect::<Vec<_>>());
     let min_index = curr.len();
     // subtract curr.len() from all plots_ids
     for i in 0..plot_ids.len() {
@@ -236,7 +208,29 @@ fn measure_row(
         .into_iter()
         .map(|(key, value)| (key - min_index, value))
         .collect::<HashMap<_, _>>();
-    (plot_ids, plot_stats, total_discontinued)
+    (plot_ids, plot_stats, discontinued_value)
+}
+
+
+fn price_map(grid: &Grid) -> usize {
+    let mut value = 0;
+    let (mut prev_plot_ids, mut prev_plot_stats) = measure_first_row(&grid.data[0..grid.width]);
+    for y in 1..grid.height {
+        let (plot_ids, plot_stats, discontinued) = measure_row(
+            &grid.data[y * grid.width..(y + 1) * grid.width],
+            &grid.data[(y - 1) * grid.width..y * grid.width],
+            &mut prev_plot_ids,
+            &mut prev_plot_stats,
+        );
+        prev_plot_ids = plot_ids;
+        prev_plot_stats = plot_stats;
+        value += discontinued;
+    }
+    let final_row_value = prev_plot_stats
+        .values()
+        .map(|(size, perim)| size * perim)
+        .sum::<usize>();
+    value + final_row_value
 }
 
 #[cfg(test)]
@@ -244,9 +238,69 @@ mod tests {
     use super::*;
 
     #[test]
+    fn price_map_test_large() {
+        let rows = vec![
+            vec!['R', 'R', 'R', 'R', 'I', 'I', 'C', 'C', 'F', 'F'],
+            vec!['R', 'R', 'R', 'R', 'I', 'I', 'C', 'C', 'C', 'F'],
+            vec!['V', 'V', 'R', 'R', 'R', 'C', 'C', 'F', 'F', 'F'],
+            vec!['V', 'V', 'R', 'C', 'C', 'C', 'J', 'F', 'F', 'F'],
+            vec!['V', 'V', 'V', 'V', 'C', 'J', 'J', 'C', 'F', 'E'],
+            vec!['V', 'V', 'I', 'V', 'C', 'C', 'J', 'J', 'E', 'E'],
+            vec!['V', 'V', 'I', 'I', 'I', 'C', 'J', 'J', 'E', 'E'],
+            vec!['M', 'I', 'I', 'I', 'I', 'I', 'J', 'J', 'E', 'E'],
+            vec!['M', 'I', 'I', 'I', 'S', 'I', 'J', 'E', 'E', 'E'],
+            vec!['M', 'M', 'M', 'I', 'S', 'S', 'J', 'E', 'E', 'E'],
+        ];
+        let g = Grid::new_from_vecs(10, 10, rows);
+        let price = price_map(&g);
+        assert_eq!(price, 1206);
+    }
+
+    #[test]
+    fn price_map_test() {
+        let rows = vec![
+            vec!['A', 'B', 'B', 'A'],
+            vec!['A', 'A', 'A', 'A'],
+        ];
+        let g = Grid::new_from_vecs(4, 2, rows);
+        let price = price_map(&g);
+        assert_eq!(price, 8 + 6*8);
+    }
+
+    #[test]
+    fn price_map_test_E() {
+        let rows = vec![
+            vec!['E', 'E', 'E', 'E', 'E'],
+            vec!['E', 'X', 'X', 'X', 'X'],
+            vec!['E', 'E', 'E', 'E', 'E'],
+            vec!['E', 'X', 'X', 'X', 'X'],
+            vec!['E', 'E', 'E', 'E', 'E'],
+        ];
+        let g = Grid::new_from_vecs(5, 5, rows);
+        let price = price_map(&g);
+        assert_eq!(price, 236);
+    }
+
+    #[test]
+    fn price_map_test_complex() {
+        let rows = vec![
+            vec!['A', 'A', 'A', 'A', 'A', 'A'],
+            vec!['A', 'A', 'A', 'B', 'B', 'A'],
+            vec!['A', 'A', 'A', 'B', 'B', 'A'],
+            vec!['A', 'B', 'B', 'A', 'A', 'A'],
+            vec!['A', 'B', 'B', 'A', 'A', 'A'],
+            vec!['A', 'A', 'A', 'A', 'A', 'A'],
+        ];
+        let g = Grid::new_from_vecs(6, 6, rows);
+        let price = price_map(&g);
+        // Adjust the expected price based on your specific logic
+        assert_eq!(price, 368);
+    }
+
+    #[test]
     fn test_measure_row() {
-        let curr = vec!['A', 'A', 'A', 'A'];
         let prev = vec!['A', 'B', 'B', 'A'];
+        let curr = vec!['A', 'A', 'A', 'A'];
         let mut prev_plot_ids = vec![0, 1, 1, 2];
         let mut prev_plot_stats = HashMap::new();
         prev_plot_stats.insert(0, (1, 4));
@@ -259,11 +313,84 @@ mod tests {
     }
 
     #[test]
+    fn test_measure_row_alt() {
+        let prev = vec!['A', 'B', 'A', 'A', 'A', 'B', 'A'];
+        let curr = vec!['A', 'A', 'A', 'B', 'A', 'A', 'A'];
+        let mut prev_plot_ids = vec![0, 1, 2, 2, 2, 3, 4];
+        let mut prev_plot_stats = HashMap::new();
+        prev_plot_stats.insert(0, (1, 4));
+        prev_plot_stats.insert(1, (1, 4));
+        prev_plot_stats.insert(2, (3, 4));
+        prev_plot_stats.insert(3, (1, 4));
+        prev_plot_stats.insert(4, (1, 4));
+        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        assert_eq!(plot_ids, vec![0, 0, 0, 1, 0, 0, 0]);
+        assert_eq!(plot_stats.get(&0), Some(&(11, 16)));
+        assert_eq!(plot_stats.get(&1), Some(&(1, 4)));
+        assert_eq!(total_discontinued, 4 + 4); // the B's
+    }
+
+    #[test]
+    fn test_measure_row_complex() {
+        let prev = vec!['A', 'A', 'A', 'B', 'B', 'A'];
+        let curr = vec!['A', 'A', 'A', 'A', 'A', 'A'];
+        let mut prev_plot_ids = vec![0, 0, 0, 1, 1, 2];
+        let mut prev_plot_stats = HashMap::new();
+        prev_plot_stats.insert(0, (3, 4));
+        prev_plot_stats.insert(1, (2, 4));
+        prev_plot_stats.insert(2, (1, 4));
+        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        assert_eq!(plot_ids, vec![0, 0, 0, 0, 0, 0]);
+        assert_eq!(plot_stats.get(&0), Some(&(10, 8)));
+        assert_eq!(total_discontinued, 8);
+    }
+
+    #[test]
+    fn test_measure_row_complex_interrupted() {
+        let prev = vec!['A', 'A', 'A', 'B', 'B', 'A'];
+        let curr = vec!['A', 'A', 'A', 'B', 'A', 'A'];
+        let mut prev_plot_ids = vec![0, 0, 0, 1, 1, 0]; // simulate the last A being connected to the other A's by rows above
+        let mut prev_plot_stats = HashMap::new();
+        prev_plot_stats.insert(0, (14, 8));
+        prev_plot_stats.insert(1, (2, 4));
+        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        assert_eq!(plot_ids, vec![0, 0, 0, 1, 0, 0]);
+        assert_eq!(plot_stats.get(&0), Some(&(14+5, 10)));
+        assert_eq!(plot_stats.get(&1), Some(&(3, 6)));
+        assert_eq!(total_discontinued, 0);
+    }
+
+    #[test]
+    fn test_measure_row_complex_rev() {
+        let prev = vec!['A', 'A', 'A', 'A', 'A', 'A'];
+        let curr = vec!['A', 'A', 'A', 'B', 'B', 'A'];
+        let mut prev_plot_ids = vec![0, 0, 0, 0, 0, 0];
+        let mut prev_plot_stats = HashMap::new();
+        prev_plot_stats.insert(0, (6, 4));
+        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        assert_eq!(plot_ids, vec![0, 0, 0, 1, 1, 0]);
+        assert_eq!(plot_stats.get(&0), Some(&(10, 8)));
+        assert_eq!(plot_stats.get(&1), Some(&(2, 4)));
+        assert_eq!(total_discontinued, 0);
+    }
+
+    #[test]
     fn test_measure_first_row_single_plot() {
         let row = vec!['a', 'a', 'a', 'a'];
         let (labeled_row, plot_stats) = measure_first_row(&row);
         assert_eq!(labeled_row, vec![0, 0, 0, 0]);
         assert_eq!(plot_stats.get(&0), Some(&(4, 4)));
+    }
+
+    #[test]
+    fn test_measure_first_row_single_plot_mixed() {
+        let row = vec!['a', 'a', 'a', 'a', 'b', 'a'];
+        let (labeled_row, plot_stats) = measure_first_row(&row);
+        assert_eq!(labeled_row, vec![0, 0, 0, 0, 1, 2]);
+        assert_eq!(plot_stats.get(&0), Some(&(4, 4)));
+        assert_eq!(plot_stats.get(&1), Some(&(1, 4)));
+        assert_eq!(plot_stats.get(&2), Some(&(1, 4)));
+
     }
 
     #[test]
