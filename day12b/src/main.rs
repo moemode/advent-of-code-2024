@@ -129,6 +129,60 @@ fn relabel(prev_plot_ids: &mut [usize], connected: &HashSet<usize>, new_id: usiz
     }
 }
 
+fn gather_connected_plots(
+    curr: &[char],
+    prev: &[char],
+    prev_plot_ids: &[usize],
+    left: usize,
+    right: &mut usize,
+) -> HashSet<usize> {
+    let mut connected = HashSet::new();
+    let plot_char = curr[left];
+    while *right < curr.len() && curr[*right] == plot_char {
+        if prev[*right] == plot_char {
+            connected.insert(prev_plot_ids[*right]);
+        }
+        *right += 1;
+    }
+    connected
+}
+
+fn calculate_plot_stats(
+    curr: &[char],
+    prev: &[char],
+    left: usize,
+    right: usize,
+    connected: &HashSet<usize>,
+    prev_plot_stats: &mut HashMap<usize, (usize, usize)>,
+) -> (usize, usize) {
+    let mut total_size = right - left;
+    let mut total_perim = additional_perim_left(curr, prev, left);
+    total_perim += additional_perim_right(curr, prev, right - 1);
+    for pid in connected {
+        if let Some((size, perim)) = prev_plot_stats.remove(pid) {
+            total_size += size;
+            total_perim += perim;
+        }
+    }
+    (total_size, total_perim)
+}
+
+fn normalize_plot_ids(plot_ids: &mut [usize], min_id: usize) {
+    for id in plot_ids.iter_mut() {
+        *id -= min_id;
+    }
+}
+
+fn normalize_plot_stats(
+    plot_stats: HashMap<usize, (usize, usize)>,
+    min_id: usize,
+) -> HashMap<usize, (usize, usize)> {
+    plot_stats
+        .into_iter()
+        .map(|(key, value)| (key - min_id, value))
+        .collect()
+}
+
 /// Measures the plots in the current row of a grid, updating plot IDs and statistics.
 ///
 /// # Arguments
@@ -165,44 +219,20 @@ fn measure_row(
     let min_id = curr.len();
     let mut unassigned_id = min_id;
     while left < curr.len() {
-        let mut connected = HashSet::new();
-        let plot_char = curr[left];
-        // walk to right as long as its the same plot, gather all parts of this plot from the previous row
-        while right < curr.len() && curr[right] == plot_char {
-            if prev[right] == plot_char {
-                connected.insert(prev_plot_ids[right]);
-            }
-            right += 1;
-        }
-        // relabeled contains exactly one entry if we connect up to fields which have been connected to a plot in curr 
-        // before e.g.
-        // A A A A
-        // A A B A <- occurs here
-        let relabeled= connected.iter().filter(|&&pid| pid >= min_id).next();
+        let connected = gather_connected_plots(curr, prev, prev_plot_ids, left, &mut right);
+        let relabeled = connected.iter().filter(|&&pid| pid >= min_id).next();
         let id = if let Some(&plot_id) = relabeled {
             plot_id
         } else {
             unassigned_id += 1;
             unassigned_id - 1
         };
-        // now that we have the right plot_id, we can label the current row and relabel in the previous row
         for i in left..right {
             plot_ids[i] = id;
         }
         relabel(prev_plot_ids, &connected, id);
-        // get the new stats and relabel the connected rectangles in prev
-        let mut total_size = right - left;
-        let mut total_perim = additional_perim_left(curr, prev, left);
-        total_perim += additional_perim_right(curr, prev, right - 1);
-        for pid in &connected {
-            let stats = prev_plot_stats.remove(&pid);
-            if let Some((size, perim)) = stats {
-                total_size += size;
-                total_perim += perim;
-            }
-        }
+        let (total_size, total_perim) = calculate_plot_stats(curr, prev, left, right, &connected, prev_plot_stats);
         discontinued = discontinued.difference(&connected).cloned().collect();
-        // insert into both for result and if needed for disconnected tiles to the right
         plot_stats.insert(id, (total_size, total_perim));
         prev_plot_stats.insert(id, (total_size, total_perim));
         left = right;
@@ -212,16 +242,8 @@ fn measure_row(
         .map(|pid| prev_plot_stats.get(pid).unwrap())
         .map(|(size, perim)| size * perim)
         .sum();
-    // normalize plot_ids which are at least min_id
-    // this ensures that the plot_ids are in the range 0..n
-    for i in 0..plot_ids.len() {
-        plot_ids[i] -= min_id;
-    }
-    // subtract curr.len() from all keys in plot_stats
-    let plot_stats = plot_stats
-        .into_iter()
-        .map(|(key, value)| (key - min_id, value))
-        .collect::<HashMap<_, _>>();
+    normalize_plot_ids(&mut plot_ids, min_id);
+    let plot_stats = normalize_plot_stats(plot_stats, min_id);
     (plot_ids, plot_stats, discontinued_value)
 }
 
