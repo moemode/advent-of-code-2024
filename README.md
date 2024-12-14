@@ -9,4 +9,6 @@ My solutions to Advent of Code 2024 in Rust.
 | 7   | [main.rs](day07a/src/main.rs) | [main.rs](day07b/src/main.rs) |
 | 8   | [main.rs](day08a/src/main.rs) | [main.rs](day08b/src/main.rs) |
 | 9   | [main.rs](day09a/src/main.rs) | missing |
+| 10  | missing | missing |
 | 11  | [main.rs](day11a/src/main.rs) | [main.rs](day11b/src/main.rs) |
+| 12  | [main.rs](day12a/src/main.rs) | [main.rs](day12b/src/main.rs) |
