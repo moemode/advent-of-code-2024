@@ -183,6 +183,17 @@ fn normalize_plot_stats(
         .collect()
 }
 
+fn calculate_discontinued_value(
+    discontinued: &HashSet<usize>,
+    prev_plot_stats: &HashMap<usize, (usize, usize)>,
+) -> usize {
+    discontinued
+        .iter()
+        .map(|pid| prev_plot_stats.get(pid).unwrap())
+        .map(|(size, perim)| size * perim)
+        .sum()
+}
+
 /// Measures the plots in the current row of a grid, updating plot IDs and statistics.
 ///
 /// # Arguments
@@ -227,9 +238,11 @@ fn measure_row(
             unassigned_id += 1;
             unassigned_id - 1
         };
+        // Assign the plot id to the newly found rectangle
         for i in left..right {
             plot_ids[i] = id;
         }
+        // Update the connected rectangles in the row above
         relabel(prev_plot_ids, &connected, id);
         let (total_size, total_perim) = calculate_plot_stats(curr, prev, left, right, &connected, prev_plot_stats);
         discontinued = discontinued.difference(&connected).cloned().collect();
@@ -237,11 +250,7 @@ fn measure_row(
         prev_plot_stats.insert(id, (total_size, total_perim));
         left = right;
     }
-    let discontinued_value = discontinued
-        .iter()
-        .map(|pid| prev_plot_stats.get(pid).unwrap())
-        .map(|(size, perim)| size * perim)
-        .sum();
+    let discontinued_value = calculate_discontinued_value(&discontinued, prev_plot_stats);
     normalize_plot_ids(&mut plot_ids, min_id);
     let plot_stats = normalize_plot_stats(plot_stats, min_id);
     (plot_ids, plot_stats, discontinued_value)
