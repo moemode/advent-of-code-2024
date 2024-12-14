@@ -84,16 +84,6 @@ impl FromStr for Grid {
 /// * A vector of plot indices labeling each character in the row.
 /// * A hashmap of plot statistics mapping each plot index to a tuple of plot size and perimeter.
 ///
-/// # Examples
-///
-/// ```
-/// let row = vec!['a', 'a', 'b', 'b', 'c'];
-/// let (labeled_row, plot_stats) = measure_first_row(&row);
-/// assert_eq!(labeled_row, vec![0, 0, 1, 1, 2]);
-/// assert_eq!(plot_stats.get(&0), Some(&(2, 4)));
-/// assert_eq!(plot_stats.get(&1), Some(&(2, 4)));
-/// assert_eq!(plot_stats.get(&2), Some(&(1, 4)));
-/// ```
 fn measure_first_row(row: &[char]) -> (Vec<usize>, HashMap<usize, (usize, usize)>) {
     let mut plot_idx = 0;
     let mut left = 0;
@@ -139,6 +129,28 @@ fn relabel(prev_plot_ids: &mut [usize], connected: &HashSet<usize>, new_id: usiz
     }
 }
 
+/// Measures the plots in the current row of a grid, updating plot IDs and statistics.
+///
+/// # Arguments
+/// * `curr` - Current row of characters.
+/// * `prev` - Previous row of characters.
+/// * `prev_plot_ids` - Plot IDs of the previous row. Must use ids in the range 0..prev_plot_ids.len().
+/// * `prev_plot_stats` - Plot statistics for the ids in prev_plot_ids.
+/// 
+/// # Example
+/// Say one call was already made for top two rows. The return values and input for the next call would be:
+/// A A A
+/// A B A <- prev 
+/// C C C <- curr
+/// prev_plot_ids = [0, 1, 0], because the A's are connected to the A's in the row above
+/// prev_plot_stats = {0: (5, 6), 1: (1, 4)} because the A plot has size 5 and perimeter 6 and the 
+/// B plot has size 1 and perimeter 4 when considering everything up to the current row.
+/// 
+/// # Returns
+/// A tuple containing:
+/// * Plot IDs for the current row.
+/// * Updated plot statistics.
+/// * Total value of discontinued plots.
 fn measure_row(
     curr: &[char],
     prev: &[char],
@@ -150,35 +162,38 @@ fn measure_row(
     let mut plot_stats = HashMap::new();
     let mut left = 0;
     let mut right = left;
-    let mut unassigned_id = curr.len(); // cannot have been assigned in previous row
+    let min_id = curr.len();
+    let mut unassigned_id = min_id;
     while left < curr.len() {
         let mut connected = HashSet::new();
         let plot_char = curr[left];
+        // walk to right as long as its the same plot, gather all parts of this plot from the previous row
         while right < curr.len() && curr[right] == plot_char {
             if prev[right] == plot_char {
                 connected.insert(prev_plot_ids[right]);
             }
             right += 1;
         }
-        // from connected keep the ones which are in plot_stats.keys
-        // relableed will contain exactly one entry if we connect up to fields which have been relabeled because they are 
-        // connected to other fields to the left of us with same character, e.g.
-        // A B A
-        // A A A
-        let relabeled: Vec<usize> = connected.intersection(&plot_stats.keys().cloned().collect()).cloned().collect();
-        let id = if relabeled.len() > 0 {
-            *relabeled.iter().next().unwrap()
+        // relabeled contains exactly one entry if we connect up to fields which have been connected to a plot in curr 
+        // before e.g.
+        // A A A A
+        // A A B A <- occurs here
+        let relabeled= connected.iter().filter(|&&pid| pid >= min_id).next();
+        let id = if let Some(&plot_id) = relabeled {
+            plot_id
         } else {
-            unassigned_id
+            unassigned_id += 1;
+            unassigned_id - 1
         };
+        // now that we have the right plot_id, we can label the current row and relabel in the previous row
         for i in left..right {
             plot_ids[i] = id;
         }
+        relabel(prev_plot_ids, &connected, id);
         // get the new stats and relabel the connected rectangles in prev
         let mut total_size = right - left;
-        let rightmost = right - 1;
         let mut total_perim = additional_perim_left(curr, prev, left);
-        total_perim += additional_perim_right(curr, prev, rightmost);
+        total_perim += additional_perim_right(curr, prev, right - 1);
         for pid in &connected {
             let stats = prev_plot_stats.remove(&pid);
             if let Some((size, perim)) = stats {
@@ -187,10 +202,9 @@ fn measure_row(
             }
         }
         discontinued = discontinued.difference(&connected).cloned().collect();
+        // insert into both for result and if needed for disconnected tiles to the right
         plot_stats.insert(id, (total_size, total_perim));
         prev_plot_stats.insert(id, (total_size, total_perim));
-        relabel(prev_plot_ids, &connected, id);
-        unassigned_id += 1;
         left = right;
     }
     let discontinued_value = discontinued
@@ -198,17 +212,15 @@ fn measure_row(
         .map(|pid| prev_plot_stats.get(pid).unwrap())
         .map(|(size, perim)| size * perim)
         .sum();
-    // print out all discontinued
-    dbg!(&discontinued.iter().map(|pid| prev_plot_stats.get(pid).unwrap()).collect::<Vec<_>>());
-    let min_index = curr.len();
-    // subtract curr.len() from all plots_ids
+    // normalize plot_ids which are at least min_id
+    // this ensures that the plot_ids are in the range 0..n
     for i in 0..plot_ids.len() {
-        plot_ids[i] -= min_index;
+        plot_ids[i] -= min_id;
     }
     // subtract curr.len() from all keys in plot_stats
     let plot_stats = plot_stats
         .into_iter()
-        .map(|(key, value)| (key - min_index, value))
+        .map(|(key, value)| (key - min_id, value))
         .collect::<HashMap<_, _>>();
     (plot_ids, plot_stats, discontinued_value)
 }
@@ -281,6 +293,22 @@ mod tests {
         let g = Grid::new_from_vecs(5, 5, rows);
         let price = price_map(&g);
         assert_eq!(price, 236);
+    }
+
+    #[test]
+    fn price_map_test_from_file() {
+        // Read the input file
+        let input = fs::read_to_string("input.txt")
+            .expect("Failed to read input file");
+        // Parse the input into a grid
+        let rows: Vec<Vec<char>> = input.lines()
+            .map(|line| line.chars().collect())
+            .collect();
+        let width = rows[0].len();
+        let height = rows.len();
+        let g = Grid::new_from_vecs(width, height, rows);
+        let price = price_map(&g);
+        assert_eq!(price, 873584);
     }
 
     #[test]
@@ -415,6 +443,7 @@ mod tests {
         assert_eq!(plot_stats.get(&2), Some(&(1, 4)));
         assert_eq!(plot_stats.get(&3), Some(&(1, 4)));
     }
+
 }
 
 fn main() {
