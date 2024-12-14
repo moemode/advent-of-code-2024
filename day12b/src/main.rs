@@ -183,7 +183,7 @@ fn measure_row(
     prev_plot_ids: &mut Vec<usize>,
     prev_plot_stats: &mut HashMap<usize, (usize, usize)>,
 ) -> (Vec<usize>, HashMap<usize, (usize, usize)>, usize) {
-    // from prev_plot_indices create Hashset
+    // plots which are not continued in curr
     let mut discontinued = prev_plot_ids.iter().cloned().collect::<HashSet<_>>();
     let mut plot_ids = vec![0; curr.len()];
     let mut plot_stats = HashMap::new();
@@ -195,7 +195,9 @@ fn measure_row(
         let plot_char = curr[left];
         while right < curr.len() && curr[right] == plot_char {
             plot_ids[right] = unassigned_id;
-            connected.insert(prev_plot_ids[right]);
+            if prev[right] == plot_char {
+                connected.insert(prev_plot_ids[right]);
+            }
             right += 1;
         }
         // get the new stats and relabel the connected rectangles in prev
@@ -224,13 +226,37 @@ fn measure_row(
         .map(|pid| prev_plot_stats.get(pid).unwrap())
         .map(|(size, perim)| size * perim)
         .sum();
+    let min_index = curr.len();
+    // subtract curr.len() from all plots_ids
+    for i in 0..plot_ids.len() {
+        plot_ids[i] -= min_index;
+    }
+    // subtract curr.len() from all keys in plot_stats
+    let plot_stats = plot_stats
+        .into_iter()
+        .map(|(key, value)| (key - min_index, value))
+        .collect::<HashMap<_, _>>();
     (plot_ids, plot_stats, total_discontinued)
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_measure_row() {
+        let curr = vec!['A', 'A', 'A', 'A'];
+        let prev = vec!['A', 'B', 'B', 'A'];
+        let mut prev_plot_ids = vec![0, 1, 1, 2];
+        let mut prev_plot_stats = HashMap::new();
+        prev_plot_stats.insert(0, (1, 4));
+        prev_plot_stats.insert(1, (2, 4));
+        prev_plot_stats.insert(2, (1, 4));
+        let (plot_ids, plot_stats, total_discontinued) = measure_row(&curr, &prev, &mut prev_plot_ids, &mut prev_plot_stats);
+        assert_eq!(plot_ids, vec![0, 0, 0, 0]);
+        assert_eq!(plot_stats.get(&0), Some(&(6, 8)));
+        assert_eq!(total_discontinued, 4*2);
+    }
 
     #[test]
     fn test_measure_first_row_single_plot() {
