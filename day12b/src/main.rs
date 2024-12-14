@@ -145,7 +145,6 @@ fn measure_row(
     prev_plot_ids: &mut Vec<usize>,
     prev_plot_stats: &mut HashMap<usize, (usize, usize)>,
 ) -> (Vec<usize>, HashMap<usize, (usize, usize)>, usize) {
-    // plots which are not continued in curr
     let mut discontinued = prev_plot_ids.iter().cloned().collect::<HashSet<_>>();
     let mut plot_ids = vec![0; curr.len()];
     let mut plot_stats = HashMap::new();
@@ -156,13 +155,16 @@ fn measure_row(
         let mut connected = HashSet::new();
         let plot_char = curr[left];
         while right < curr.len() && curr[right] == plot_char {
-            //plot_ids[right] = unassigned_id;
             if prev[right] == plot_char {
                 connected.insert(prev_plot_ids[right]);
             }
             right += 1;
         }
         // from connected keep the ones which are in plot_stats.keys
+        // relableed will contain exactly one entry if we connect up to fields which have been relabeled because they are 
+        // connected to other fields to the left of us with same character, e.g.
+        // A B A
+        // A A A
         let relabeled: Vec<usize> = connected.intersection(&plot_stats.keys().cloned().collect()).cloned().collect();
         let id = if relabeled.len() > 0 {
             *relabeled.iter().next().unwrap()
@@ -187,7 +189,7 @@ fn measure_row(
         discontinued = discontinued.difference(&connected).cloned().collect();
         plot_stats.insert(id, (total_size, total_perim));
         prev_plot_stats.insert(id, (total_size, total_perim));
-        relabel(prev_plot_ids, &connected, unassigned_id);
+        relabel(prev_plot_ids, &connected, id);
         unassigned_id += 1;
         left = right;
     }
