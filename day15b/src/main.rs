@@ -166,9 +166,6 @@ fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Pos
                 }
                 // insert the shoved boxes
                 grid.boxes.extend(shoved_boxes);
-                if grid.boxes.len() != nboxes {
-                    panic!("Boxes count changed");
-                }
                 new_pos
             } else {
                 robot
