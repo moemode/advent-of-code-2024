@@ -93,6 +93,13 @@ impl Grid {
         }
     }
 
+    fn shovable(&self, box_pos: Position, direction: (i64, i64)) -> bool {
+        // ensure no wall
+        let next_l = (box_pos.0 + direction.0, box_pos.1 + direction.1);
+        let next_r = (box_pos.0 + 1 + direction.0, box_pos.1 + direction.1);
+        return self.walls.contains(&next_l) || self.walls.contains(&next_r);
+    }
+
     fn total_boxes_gps(&self) -> i64 {
         self.boxes.iter().map(|(x, y)| 100 * y + x).sum()
     }
@@ -125,14 +132,18 @@ impl fmt::Display for Grid {
     }
 }
 
-/* fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Position {
+fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Position {
     let new_pos = (robot.0 + instruction.0, robot.1 + instruction.1);
     match grid.get(new_pos) {
         Cell::Free => new_pos,
-        Cell::Box(_) => {
-            if let Some(shove_to) = grid.position_past_boxes(new_pos, instruction) {
-                grid.set(new_pos, Cell::Free);
-                grid.set(shove_to, Cell::Box(new_pos));
+        Cell::Box(box_pos) => {
+            let connected_boxes = grid.connected_boxes(box_pos, instruction);
+            if connected_boxes.iter().all(|&b| grid.shovable(b, instruction)) {
+                for &b in connected_boxes.iter() {
+                    let shove_to = (b.0 + instruction.0, b.1 + instruction.1);
+                    grid.boxes.remove(&b);
+                    grid.boxes.insert(shove_to);
+                }
                 new_pos
             } else {
                 robot
@@ -141,6 +152,7 @@ impl fmt::Display for Grid {
         Cell::Wall => robot,
     }
 }
+
 fn robot_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> Position {
     let mut current_pos = robot;
     for &instruction in instructions {
@@ -153,7 +165,6 @@ fn total_gps_after_walk(robot: Position, instructions: &[Instruction], grid: &mu
     robot_walk(robot, instructions, grid);
     grid.total_boxes_gps()
 }
- */
 
 fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
     let parts: Vec<&str> = input.split("\n\n").collect();
