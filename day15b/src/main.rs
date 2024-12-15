@@ -7,7 +7,7 @@ type Instruction = (i64, i64);
 enum Cell {
     Free,
     Wall,
-    Box,
+    Box(Position),
 }
 
 struct Grid {
@@ -31,33 +31,15 @@ impl Grid {
         if self.walls.contains(&pos) {
             Cell::Wall
         } else if self.boxes.contains(&pos) {
-            Cell::Box
+            Cell::Box(pos)
         } else {
-            Cell::Free
+            // either free or right half of a box
+            if self.boxes.contains(&(pos.0 - 1, pos.1)) {
+                Cell::Box((pos.0 - 1, pos.1))
+            } else {
+                Cell::Free
+            }
         }
-    }
-
-    fn set(&mut self, pos: Position, value: Cell) -> Cell {
-        let old_value = self.get(pos);
-        match old_value {
-            Cell::Wall => {
-                self.walls.remove(&pos);
-            }
-            Cell::Box => {
-                self.boxes.remove(&pos);
-            }
-            _ => {}
-        }
-        match value {
-            Cell::Wall => {
-                self.walls.insert(pos);
-            }
-            Cell::Box => {
-                self.boxes.insert(pos);
-            }
-            _ => {}
-        }
-        old_value
     }
 
     fn h_connected(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
@@ -71,7 +53,7 @@ impl Grid {
         connected
     }
 
-    fn v_adjacent(&self, box_pos: Position, v_offset: i64) -> Vec<Position>{
+    fn v_adjacent(&self, box_pos: Position, v_offset: i64) -> Vec<Position> {
         let mut adjacent = vec![];
         for dx in -1..=1 {
             let next_pos = (box_pos.0 + dx, box_pos.1 + v_offset);
@@ -108,9 +90,32 @@ impl Grid {
         }
     }
 
-
     fn total_boxes_gps(&self) -> i64 {
         self.boxes.iter().map(|(x, y)| 100 * y + x).sum()
+    }
+
+    fn print_map(&self, robot: Position) {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let pos = (x, y);
+                if pos == robot {
+                    print!("@");
+                } else {
+                    match self.get(pos) {
+                        Cell::Free => print!("."),
+                        Cell::Wall => print!("#"),
+                        Cell::Box(left_half) => {
+                            if pos == left_half {
+                                print!("[");
+                            } else {
+                                print!("]");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        println!();
     }
 }
 
@@ -118,10 +123,10 @@ fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Pos
     let new_pos = (robot.0 + instruction.0, robot.1 + instruction.1);
     match grid.get(new_pos) {
         Cell::Free => new_pos,
-        Cell::Box => {
+        Cell::Box(_) => {
             if let Some(shove_to) = grid.position_past_boxes(new_pos, instruction) {
                 grid.set(new_pos, Cell::Free);
-                grid.set(shove_to, Cell::Box);
+                grid.set(shove_to, Cell::Box(new_pos));
                 new_pos
             } else {
                 robot
@@ -157,27 +162,27 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
     let mut boxes = HashSet::new();
 
     for (y, line) in grid_lines.iter().enumerate() {
-        let mut x_grid = 0;
-        for (x, ch) in line.chars().enumerate() {
-            let pos = (x_grid, y as i64);
+        let mut x = 0;
+        for (_, ch) in line.chars().enumerate() {
+            let pos = (x, y as i64);
             match ch {
                 '#' => {
                     obstacles.insert(pos);
-                    obstacles.insert((x_grid + 1, y as i64));
-                    x_grid += 2;
+                    obstacles.insert((x + 1, y as i64));
                 }
+                // O becomes [], implemented by get
                 'O' => {
                     boxes.insert(pos);
-                    x_grid += 2;
                 }
+                // @ becomes .@
                 '@' => {
-                    robot = pos;
-                    x_grid += 1;
+                    robot = (x + 1, y as i64);
                 }
                 _ => {
-                    x_grid += 2;
                 }
             };
+            x += 2;
+
         }
     }
 
@@ -202,6 +207,7 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
 fn main() {
     let input = std::fs::read_to_string("input.txt").expect("Failed to read input file");
     let (mut grid, robot, instructions) = parse_input(&input);
+    grid.print_map(robot);
     println!("{}", total_gps_after_walk(robot, &instructions, &mut grid));
 }
 
@@ -266,6 +272,4 @@ mod tests {
         assert_eq!(instructions[13], (-1, 0));
         assert_eq!(instructions[14], (-1, 0));
     }
-
-    // ...existing code...
 }
