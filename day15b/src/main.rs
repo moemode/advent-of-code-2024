@@ -8,6 +8,7 @@ type Instruction = (i64, i64);
 enum Cell {
     Free,
     Wall,
+    // the position of the left half of the box
     Box(Position),
 }
 
@@ -31,6 +32,7 @@ impl Grid {
     }
 
 
+    /// get the content of cell at position pos
     fn get(&self, pos: Position) -> Cell {
         if self.walls.contains(&pos) {
             Cell::Wall
@@ -67,6 +69,7 @@ impl Grid {
             .collect()
     }
 
+    /// get boxes that are vertically connected to the first_box
     fn v_connected(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
         let mut level_set = HashSet::new();
         level_set.insert(first_box);
@@ -85,6 +88,7 @@ impl Grid {
         connected
     }
 
+    /// get boxes that are connected to the first_box when moving in direction
     fn connected_boxes(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
         if direction == (-1, 0) || direction == (1, 0) {
             return self.h_connected(first_box, direction);
@@ -93,6 +97,8 @@ impl Grid {
         }
     }
 
+    /// there must not be a wall in the direction of the shove
+    /// a box is ok because we will in turn check that that box can be shoved
     fn shovable(&self, box_pos: Position, direction: (i64, i64)) -> bool {
         // ensure no wall
         let next_l = (box_pos.0 + direction.0, box_pos.1 + direction.1);
@@ -100,6 +106,7 @@ impl Grid {
         return !self.walls.contains(&next_l) && !self.walls.contains(&next_r);
     }
 
+    /// get the total gps of all boxes
     fn total_boxes_gps(&self) -> i64 {
         self.boxes.iter().map(|(x, y)| 100 * y + x).sum()
     }
