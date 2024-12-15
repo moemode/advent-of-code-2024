@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-type Position = (u64, u64);
+type Position = (i64, i64);
 type Instruction = (i64, i64);
 
 #[derive(Debug, PartialEq)]
@@ -11,19 +11,14 @@ enum Cell {
 }
 
 struct Grid {
-    width: u64,
-    height: u64,
+    width: i64,
+    height: i64,
     walls: HashSet<Position>,
     boxes: HashSet<Position>,
 }
 
 impl Grid {
-    fn new(
-        width: u64,
-        height: u64,
-        walls: HashSet<Position>,
-        boxes: HashSet<Position>,
-    ) -> Self {
+    fn new(width: i64, height: i64, walls: HashSet<Position>, boxes: HashSet<Position>) -> Self {
         Grid {
             width,
             height,
@@ -64,7 +59,65 @@ impl Grid {
         }
         old_value
     }
+    fn position_past_boxes(&self, first_box: Position, direction: (i64, i64)) -> Option<Position> {
+        let mut current_pos = first_box;
+        loop {
+            let next_pos = (current_pos.0 + direction.0, current_pos.1 + direction.1);
+            match self.get(next_pos) {
+                Cell::Box => {
+                    current_pos = next_pos;
+                }
+                Cell::Wall => {
+                    return None;
+                }
+                Cell::Free => {
+                    return Some(next_pos);
+                }
+            }
+        }
+    }
 
+    fn total_boxes_gps(&self) -> i64 {
+        //The GPS coordinate of a box is equal to 100 times its distance from the top edge of the map plus its distance from the left edge of the map
+        self.boxes.iter().map(|(x, y)| 100 * y + x).sum()
+    }
+
+
+}
+
+fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Position {
+    let new_pos = (robot.0 + instruction.0, robot.1 + instruction.1);
+    let cell = grid.get(new_pos);
+    match cell {
+        Cell::Free => {
+            new_pos
+        }
+        Cell::Box => {
+            if let Some(shove_to) = grid.position_past_boxes(new_pos, instruction) {
+                grid.set(new_pos, Cell::Free);
+                grid.set(shove_to, Cell::Box);
+                new_pos
+            } else {
+                robot
+            }
+        }
+        Cell::Wall => {
+            robot
+        }
+    }
+}
+
+fn robot_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> Position {
+    let mut current_pos = robot;
+    for instruction in instructions {
+        current_pos = robot_step(current_pos, *instruction, grid);
+    }
+    current_pos
+}
+
+fn total_gps_after_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> i64 {
+    let final_pos = robot_walk(robot, instructions, grid);
+    grid.total_boxes_gps()
 }
 
 fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
@@ -72,8 +125,8 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
     let grid_lines: Vec<&str> = parts[0].lines().collect();
     let instructions_str = parts[1].trim();
 
-    let height = grid_lines.len() as u64;
-    let width = grid_lines[0].len() as u64;
+    let height = grid_lines.len() as i64;
+    let width = grid_lines[0].len() as i64;
 
     let mut robot = (0, 0);
     let mut obstacles = HashSet::new();
@@ -81,7 +134,7 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
 
     for (y, line) in grid_lines.iter().enumerate() {
         for (x, ch) in line.chars().enumerate() {
-            let pos = (x as u64, y as u64);
+            let pos = (x as i64, y as i64);
             match ch {
                 '#' => {
                     obstacles.insert(pos);
@@ -119,7 +172,8 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
 
 fn main() {
     let input = std::fs::read_to_string("input.txt").expect("Failed to read input file");
-    let (grid, robot, instructions) = parse_input(&input);
+    let (mut grid, robot, instructions) = parse_input(&input);
+    println!("{}", total_gps_after_walk(robot, &instructions, &mut grid));
 }
 
 #[cfg(test)]
@@ -163,7 +217,10 @@ mod tests {
         println!("{:?}", &grid.walls.difference(&expected_walls));
 
         assert_eq!(grid.walls, expected_walls);
-        let expected_boxes: HashSet<Position> = vec![(3, 1), (5, 1), (4, 2), (4, 3), (4, 4), (4, 5)].into_iter().collect();
+        let expected_boxes: HashSet<Position> =
+            vec![(3, 1), (5, 1), (4, 2), (4, 3), (4, 4), (4, 5)]
+                .into_iter()
+                .collect();
         assert!(expected_boxes == grid.boxes);
         assert_eq!(instructions.len(), 15);
         assert_eq!(instructions[0], (-1, 0));
@@ -176,7 +233,7 @@ mod tests {
         assert_eq!(instructions[7], (0, 1));
         assert_eq!(instructions[8], (-1, 0));
         assert_eq!(instructions[9], (0, 1));
-        assert_eq!(instructions[10], (1,0));
+        assert_eq!(instructions[10], (1, 0));
         assert_eq!(instructions[11], (1, 0));
         assert_eq!(instructions[12], (0, 1));
         assert_eq!(instructions[13], (-1, 0));
