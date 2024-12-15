@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt;
 
 type Position = (i64, i64);
 type Instruction = (i64, i64);
@@ -15,15 +16,17 @@ struct Grid {
     height: i64,
     walls: HashSet<Position>,
     boxes: HashSet<Position>,
+    robot: Position
 }
 
 impl Grid {
-    fn new(width: i64, height: i64, walls: HashSet<Position>, boxes: HashSet<Position>) -> Self {
+    fn new(width: i64, height: i64, walls: HashSet<Position>, boxes: HashSet<Position>, robot: Position) -> Self {
         Grid {
             width,
             height,
             walls,
             boxes,
+            robot
         }
     }
 
@@ -93,33 +96,36 @@ impl Grid {
     fn total_boxes_gps(&self) -> i64 {
         self.boxes.iter().map(|(x, y)| 100 * y + x).sum()
     }
+}
 
-    fn print_map(&self, robot: Position) {
+impl fmt::Display for Grid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for y in 0..self.height {
             for x in 0..self.width {
                 let pos = (x, y);
-                if pos == robot {
-                    print!("@");
+                if pos == self.robot {
+                    write!(f, "@")?;
                 } else {
                     match self.get(pos) {
-                        Cell::Free => print!("."),
-                        Cell::Wall => print!("#"),
+                        Cell::Free => write!(f, ".")?,
+                        Cell::Wall => write!(f, "#")?,
                         Cell::Box(left_half) => {
                             if pos == left_half {
-                                print!("[");
+                                write!(f, "[")?;
                             } else {
-                                print!("]");
+                                write!(f, "]")?;
                             }
                         }
                     }
                 }
             }
+            writeln!(f)?;
         }
-        println!();
+        Ok(())
     }
 }
 
-fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Position {
+/* fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Position {
     let new_pos = (robot.0 + instruction.0, robot.1 + instruction.1);
     match grid.get(new_pos) {
         Cell::Free => new_pos,
@@ -135,7 +141,6 @@ fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Pos
         Cell::Wall => robot,
     }
 }
-
 fn robot_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> Position {
     let mut current_pos = robot;
     for &instruction in instructions {
@@ -148,6 +153,7 @@ fn total_gps_after_walk(robot: Position, instructions: &[Instruction], grid: &mu
     robot_walk(robot, instructions, grid);
     grid.total_boxes_gps()
 }
+ */
 
 fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
     let parts: Vec<&str> = input.split("\n\n").collect();
@@ -155,7 +161,7 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
     let instructions_str = parts[1].trim();
 
     let height = grid_lines.len() as i64;
-    let width = grid_lines[0].len() as i64;
+    let width = 2 * grid_lines[0].len() as i64;
 
     let mut robot = (0, 0);
     let mut obstacles = HashSet::new();
@@ -178,11 +184,9 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
                 '@' => {
                     robot = (x + 1, y as i64);
                 }
-                _ => {
-                }
+                _ => {}
             };
             x += 2;
-
         }
     }
 
@@ -198,17 +202,17 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
         .collect();
 
     (
-        Grid::new(width, height, obstacles, boxes),
+        Grid::new(width, height, obstacles, boxes, robot),
         robot,
         instructions,
     )
 }
 
 fn main() {
-    let input = std::fs::read_to_string("input.txt").expect("Failed to read input file");
+    let input = std::fs::read_to_string("input2.txt").expect("Failed to read input file");
     let (mut grid, robot, instructions) = parse_input(&input);
-    grid.print_map(robot);
-    println!("{}", total_gps_after_walk(robot, &instructions, &mut grid));
+    println!("{}", grid);
+    // println!("{}", total_gps_after_walk(robot, &instructions, &mut grid));
 }
 
 #[cfg(test)]
@@ -271,5 +275,33 @@ mod tests {
         assert_eq!(instructions[12], (0, 1));
         assert_eq!(instructions[13], (-1, 0));
         assert_eq!(instructions[14], (-1, 0));
+    }
+
+    #[test]
+    fn test_grid_display() {
+        let input = "\
+########
+#..O.O.#
+##@.O..#
+#...O..#
+#.#.O..#
+#...O..#
+#......#
+########
+
+<^^>>>vv<v>>v<<";
+
+        let (grid, robot, _instructions) = parse_input(input);
+        let expected_output = "\
+################
+##....[]..[]..##
+####.@..[]....##
+##......[]....##
+##..##..[]....##
+##......[]....##
+##............##
+################
+";
+        assert_eq!(format!("{}", grid), expected_output);
     }
 }
