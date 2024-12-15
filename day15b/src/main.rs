@@ -97,7 +97,7 @@ impl Grid {
         // ensure no wall
         let next_l = (box_pos.0 + direction.0, box_pos.1 + direction.1);
         let next_r = (box_pos.0 + 1 + direction.0, box_pos.1 + direction.1);
-        return self.walls.contains(&next_l) || self.walls.contains(&next_r);
+        return !self.walls.contains(&next_l) && !self.walls.contains(&next_r);
     }
 
     fn total_boxes_gps(&self) -> i64 {
@@ -156,7 +156,10 @@ fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Pos
 fn robot_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> Position {
     let mut current_pos = robot;
     for &instruction in instructions {
+        //println!("{},{}", instruction.0, instruction.1);
         current_pos = robot_step(current_pos, instruction, grid);
+        grid.robot = current_pos;
+        //println!("{}", grid);
     }
     current_pos
 }
@@ -220,10 +223,10 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
 }
 
 fn main() {
-    let input = std::fs::read_to_string("input2.txt").expect("Failed to read input file");
+    let input = std::fs::read_to_string("input.txt").expect("Failed to read input file");
     let (mut grid, robot, instructions) = parse_input(&input);
     println!("{}", grid);
-    // println!("{}", total_gps_after_walk(robot, &instructions, &mut grid));
+    println!("{}", total_gps_after_walk(robot, &instructions, &mut grid));
 }
 
 #[cfg(test)]
@@ -289,5 +292,51 @@ mod tests {
 ";
         println!("{}", grid);
         assert_eq!(format!("{}", grid), expected_output);
+    }
+
+    #[test]
+    fn test_gps_smaller() {
+        let input = "\
+########
+#..O.O.#
+##@.O..#
+#...O..#
+#.#.O..#
+#...O..#
+#......#
+########
+
+<^^>>>vv<v>>v<<";
+        let (mut grid, robot, _instructions) = parse_input(input);
+        assert_eq!(total_gps_after_walk(robot, &_instructions, &mut grid), 9021);
+    }
+
+    #[test]
+    fn test_gps_larger() {
+        let input = "\
+##########
+#..O..O.O#
+#......O.#
+#.OO..O.O#
+#..O@..O.#
+#O#..O...#
+#O..O..O.#
+#.OO.O.OO#
+#....O...#
+##########
+
+<vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^
+vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
+><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<
+<<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^
+^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><
+^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^
+>^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^
+<><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>
+^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>
+v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^";
+
+        let (mut grid, robot, _instructions) = parse_input(input);
+        assert_eq!(total_gps_after_walk(robot, &_instructions, &mut grid), 9021);
     }
 }
