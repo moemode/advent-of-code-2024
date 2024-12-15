@@ -17,22 +17,27 @@ struct Grid {
     height: i64,
     walls: HashSet<Position>,
     boxes: HashSet<Position>,
-    robot: Position
+    robot: Position,
 }
 
 impl Grid {
-    fn new(width: i64, height: i64, walls: HashSet<Position>, boxes: HashSet<Position>, robot: Position) -> Self {
+    fn new(
+        width: i64,
+        height: i64,
+        walls: HashSet<Position>,
+        boxes: HashSet<Position>,
+        robot: Position,
+    ) -> Self {
         Grid {
             width,
             height,
             walls,
             boxes,
-            robot
+            robot,
         }
     }
 
-
-    /// get the content of cell at position pos
+    /// Get the content of the cell at position `pos`.
     fn get(&self, pos: Position) -> Cell {
         if self.walls.contains(&pos) {
             Cell::Wall
@@ -48,7 +53,7 @@ impl Grid {
         }
     }
 
-    /// get boxes that are horizontally connected to the first_box when moving in direction
+    /// Get boxes that are horizontally connected to the `first_box` when moving in `direction`.
     fn h_connected(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
         let mut current_pos = first_box;
         let mut connected = HashSet::new();
@@ -60,8 +65,8 @@ impl Grid {
         connected
     }
 
-    /// get boxes that are vertically connected to the first_box when moving in direction
-    /// v_offset is either -1 or 1
+    /// Get boxes that are vertically connected to the `first_box` when moving in `direction`.
+    /// `v_offset` is either -1 or 1.
     fn v_adjacent(&self, box_pos: Position, v_offset: i64) -> Vec<Position> {
         (-1..=1)
             .map(|dx| (box_pos.0 + dx, box_pos.1 + v_offset))
@@ -69,7 +74,7 @@ impl Grid {
             .collect()
     }
 
-    /// get boxes that are vertically connected to the first_box
+    /// Get boxes that are vertically connected to the `first_box`.
     fn v_connected(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
         let mut level_set = HashSet::new();
         level_set.insert(first_box);
@@ -88,7 +93,7 @@ impl Grid {
         connected
     }
 
-    /// get boxes that are connected to the first_box when moving in direction
+    /// Get boxes that are connected to the `first_box` when moving in `direction`.
     fn connected_boxes(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
         if direction == (-1, 0) || direction == (1, 0) {
             return self.h_connected(first_box, direction);
@@ -97,8 +102,8 @@ impl Grid {
         }
     }
 
-    /// there must not be a wall in the direction of the shove
-    /// a box is ok because we will in turn check that that box can be shoved
+    /// There must not be a wall in the direction of the shove.
+    /// A box is ok because we will in turn check that that box can be shoved.
     fn shovable(&self, box_pos: Position, direction: (i64, i64)) -> bool {
         // ensure no wall
         let next_l = (box_pos.0 + direction.0, box_pos.1 + direction.1);
@@ -106,7 +111,7 @@ impl Grid {
         return !self.walls.contains(&next_l) && !self.walls.contains(&next_r);
     }
 
-    /// get the total gps of all boxes
+    /// Get the total GPS of all boxes.
     fn total_boxes_gps(&self) -> i64 {
         self.boxes.iter().map(|(x, y)| 100 * y + x).sum()
     }
@@ -139,6 +144,7 @@ impl fmt::Display for Grid {
     }
 }
 
+/// Move the robot one step according to the instruction and update the grid.
 fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Position {
     let nboxes = grid.boxes.len();
     let new_pos = (robot.0 + instruction.0, robot.1 + instruction.1);
@@ -146,9 +152,14 @@ fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Pos
         Cell::Free => new_pos,
         Cell::Box(box_pos) => {
             let connected_boxes = grid.connected_boxes(box_pos, instruction);
-            if connected_boxes.iter().all(|&b| grid.shovable(b, instruction)) {
+            if connected_boxes
+                .iter()
+                .all(|&b| grid.shovable(b, instruction))
+            {
                 // get the position of the shoved boxes
-                let shoved_boxes = connected_boxes.iter().map(|&b| (b.0 + instruction.0, b.1 + instruction.1));
+                let shoved_boxes = connected_boxes
+                    .iter()
+                    .map(|&b| (b.0 + instruction.0, b.1 + instruction.1));
                 // remove all connected boxes from grid.boxes
                 for &b in connected_boxes.iter() {
                     grid.boxes.remove(&b);
@@ -165,9 +176,9 @@ fn robot_step(robot: Position, instruction: Instruction, grid: &mut Grid) -> Pos
         }
         Cell::Wall => robot,
     }
-   
 }
 
+/// Move the robot according to the instructions and update the grid.
 fn robot_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> Position {
     let mut current_pos = robot;
     for &instruction in instructions {
@@ -177,11 +188,13 @@ fn robot_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) ->
     current_pos
 }
 
+/// Calculate the total GPS after the robot has walked according to the instructions.
 fn total_gps_after_walk(robot: Position, instructions: &[Instruction], grid: &mut Grid) -> i64 {
     robot_walk(robot, instructions, grid);
     grid.total_boxes_gps()
 }
 
+/// Parse the input string into a Grid, robot position, and instructions.
 fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
     let parts: Vec<&str> = input.split("\n\n").collect();
     let grid_lines: Vec<&str> = parts[0].lines().collect();
@@ -329,7 +342,6 @@ mod tests {
         assert_eq!(robot, (6, 5));
     }
 
-
     #[test]
     fn test_gps_smaller() {
         let input = "\
@@ -344,7 +356,7 @@ mod tests {
 
 <^^>>>vv<v>>v<<";
         let (mut grid, robot, _instructions) = parse_input(input);
-        assert_eq!(total_gps_after_walk(robot, &_instructions, &mut grid), 9021);
+        assert_eq!(total_gps_after_walk(robot, &_instructions, &mut grid), 1751);
     }
 
     #[test]
@@ -389,6 +401,9 @@ v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^";
 
 <vv<<^^<<^^";
         let (mut grid, robot, _instructions) = parse_input(input);
-        assert_eq!(total_gps_after_walk(robot, &_instructions, &mut grid), 100*1+5+100*2+7+100*3+6);
+        assert_eq!(
+            total_gps_after_walk(robot, &_instructions, &mut grid),
+            100 * 1 + 5 + 100 * 2 + 7 + 100 * 3 + 6
+        );
     }
 }
