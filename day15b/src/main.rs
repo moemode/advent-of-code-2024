@@ -30,6 +30,7 @@ impl Grid {
         }
     }
 
+
     fn get(&self, pos: Position) -> Cell {
         if self.walls.contains(&pos) {
             Cell::Wall
@@ -45,6 +46,7 @@ impl Grid {
         }
     }
 
+    /// get boxes that are horizontally connected to the first_box when moving in direction
     fn h_connected(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
         let mut current_pos = first_box;
         let mut connected = HashSet::new();
@@ -56,15 +58,13 @@ impl Grid {
         connected
     }
 
+    /// get boxes that are vertically connected to the first_box when moving in direction
+    /// v_offset is either -1 or 1
     fn v_adjacent(&self, box_pos: Position, v_offset: i64) -> Vec<Position> {
-        let mut adjacent = vec![];
-        for dx in -1..=1 {
-            let next_pos = (box_pos.0 + dx, box_pos.1 + v_offset);
-            if self.boxes.contains(&next_pos) {
-                adjacent.push(next_pos);
-            }
-        }
-        adjacent
+        (-1..=1)
+            .map(|dx| (box_pos.0 + dx, box_pos.1 + v_offset))
+            .filter(|next_pos| self.boxes.contains(next_pos))
+            .collect()
     }
 
     fn v_connected(&self, first_box: Position, direction: (i64, i64)) -> HashSet<Position> {
