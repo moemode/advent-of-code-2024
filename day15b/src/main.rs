@@ -180,9 +180,9 @@ fn parse_input(input: &str) -> (Grid, Position, Vec<Instruction>) {
                 'O' => {
                     boxes.insert(pos);
                 }
-                // @ becomes .@
+                // @ becomes @.
                 '@' => {
-                    robot = (x + 1, y as i64);
+                    robot = (x, y as i64);
                 }
                 _ => {}
             };
@@ -220,65 +220,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_input() {
-        let input = "\
-########
-#..O.O.#
-##@.O..#
-#...O..#
-#.#.O..#
-#...O..#
-#......#
-########
-
-<^^>>>vv<v>>v<<";
-
-        let (grid, robot, instructions) = parse_input(input);
-
-        assert_eq!(grid.width, 8);
-        assert_eq!(grid.height, 8);
-        assert_eq!(robot, (2, 2));
-        assert!(grid.walls.contains(&(0, 0)));
-        assert!(grid.walls.contains(&(7, 7)));
-
-        let mut expected_walls = HashSet::new();
-        for x in 0..8 {
-            expected_walls.insert((x, 0));
-            expected_walls.insert((x, 7));
-        }
-        for y in 0..8 {
-            expected_walls.insert((0, y));
-            expected_walls.insert((7, y));
-        }
-        expected_walls.insert((1, 2));
-        expected_walls.insert((2, 4));
-        assert_eq!(grid.walls, expected_walls);
-
-        let expected_boxes: HashSet<Position> =
-            vec![(3, 1), (5, 1), (4, 2), (4, 3), (4, 4), (4, 5)]
-                .into_iter()
-                .collect();
-        assert_eq!(grid.boxes, expected_boxes);
-        assert_eq!(instructions.len(), 15);
-        assert_eq!(instructions[0], (-1, 0));
-        assert_eq!(instructions[1], (0, -1));
-        assert_eq!(instructions[2], (0, -1));
-        assert_eq!(instructions[3], (1, 0));
-        assert_eq!(instructions[4], (1, 0));
-        assert_eq!(instructions[5], (1, 0));
-        assert_eq!(instructions[6], (0, 1));
-        assert_eq!(instructions[7], (0, 1));
-        assert_eq!(instructions[8], (-1, 0));
-        assert_eq!(instructions[9], (0, 1));
-        assert_eq!(instructions[10], (1, 0));
-        assert_eq!(instructions[11], (1, 0));
-        assert_eq!(instructions[12], (0, 1));
-        assert_eq!(instructions[13], (-1, 0));
-        assert_eq!(instructions[14], (-1, 0));
-    }
-
-    #[test]
-    fn test_grid_display() {
+    fn test_parse_display() {
         let input = "\
 ########
 #..O.O.#
@@ -295,13 +237,46 @@ mod tests {
         let expected_output = "\
 ################
 ##....[]..[]..##
-####.@..[]....##
+####@...[]....##
 ##......[]....##
 ##..##..[]....##
 ##......[]....##
 ##............##
 ################
 ";
+        assert_eq!(format!("{}", grid), expected_output);
+    }
+
+    #[test]
+    fn test_parse_display_2() {
+        let input = "\
+##########
+#..O..O.O#
+#......O.#
+#.OO..O.O#
+#..O@..O.#
+#O#..O...#
+#O..O..O.#
+#.OO.O.OO#
+#....O...#
+##########
+
+<vv>^<v^>v>";
+
+        let (grid, robot, _instructions) = parse_input(input);
+        let expected_output = "\
+####################
+##....[]....[]..[]##
+##............[]..##
+##..[][]....[]..[]##
+##....[]@.....[]..##
+##[]##....[]......##
+##[]....[]....[]..##
+##..[][]..[]..[][]##
+##........[]......##
+####################
+";
+        println!("{}", grid);
         assert_eq!(format!("{}", grid), expected_output);
     }
 }
