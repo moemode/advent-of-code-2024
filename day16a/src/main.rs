@@ -1,8 +1,25 @@
+use priority_queue::PriorityQueue;
+use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fmt;
 
 type Position = (i64, i64);
-type Instruction = (i64, i64);
+type Orientation = (i64, i64);
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+struct State {
+    position: Position,
+    orientation: Orientation,
+}
+
+impl State {
+    fn new(position: Position, orientation: Orientation) -> Self {
+        State {
+            position,
+            orientation,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 enum Cell {
@@ -102,9 +119,59 @@ fn parse_input(input: &str) -> (Grid, Position, Position) {
     (grid, start, end)
 }
 
+fn turn_right(orientation: Orientation) -> Orientation {
+    (orientation.1, -orientation.0)
+}
+
+fn turn_left(orientation: Orientation) -> Orientation {
+    (-orientation.1, orientation.0)
+}
+
+fn turn_around(orientation: Orientation) -> Orientation {
+    (-orientation.0, -orientation.1)
+}
+
+fn shortest_path_score(grid: &Grid, start: Position, end: Position) -> i64 {
+    let mut pq = PriorityQueue::new();
+    pq.push(State::new(start, (1, 0)), Reverse(0));
+    pq.push(State::new(start, turn_left((1, 0))), Reverse(1000));
+    pq.push(State::new(start, turn_right((1, 0))), Reverse(1000));
+    pq.push(State::new(start, turn_around((1, 0))), Reverse(2000));
+    let mut visited = HashSet::new();
+    while let Some((state, cost)) = pq.pop() {
+        if state.position == end {
+            return cost.0;
+        }
+        if visited.contains(&state) {
+            continue;
+        }
+        visited.insert(state.clone());
+        let (x, y) = state.position;
+        let (dx, dy) = state.orientation;
+        let new_pos = (x + dx, y + dy);
+        if grid.get(new_pos) == Cell::Wall {
+            continue;
+        }
+        let new_states = vec![
+            (State::new(new_pos, state.orientation), 1),
+            (State::new(new_pos, turn_right(state.orientation)), 1001),
+            (State::new(new_pos, turn_left(state.orientation)), 1001),
+            (State::new(new_pos, turn_around(state.orientation)), 2001),
+        ];
+        for (new_state, additional_cost) in new_states {
+            if !visited.contains(&new_state) {
+                pq.push_decrease(new_state, Reverse(cost.0 + additional_cost));
+            }
+        }
+    }
+    -1
+}
+
 fn main() {
     let input = std::fs::read_to_string("input.txt").expect("Failed to read input file");
-    let (mut grid, start, end) = parse_input(&input);
+    let (grid, start, end) = parse_input(&input);
+    let score = shortest_path_score(&grid, start, end);
+    println!("Shortest path score: {}", score);
 }
 
 #[cfg(test)]
