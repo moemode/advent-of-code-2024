@@ -131,16 +131,37 @@ fn turn_around(orientation: Orientation) -> Orientation {
     (-orientation.0, -orientation.1)
 }
 
+fn all_orientations(s: State, cost: i64) -> Vec<(State, i64)> {
+    let mut res = Vec::new();
+    res.push((State::new(s.position, s.orientation), cost));
+    res.push((
+        State::new(s.position, turn_right(s.orientation)),
+        cost + 1000,
+    ));
+    res.push((
+        State::new(s.position, turn_left(s.orientation)),
+        cost + 1000,
+    ));
+    res.push((
+        State::new(s.position, turn_around(s.orientation)),
+        cost + 2000,
+    ));
+    res
+}
+
+/// find shortest path from start to end
+/// return -1 if no path is found
 fn shortest_path_score(grid: &Grid, start: Position, end: Position) -> i64 {
     let mut pq = PriorityQueue::new();
-    pq.push(State::new(start, (1, 0)), Reverse(0));
-    pq.push(State::new(start, turn_left((1, 0))), Reverse(1000));
-    pq.push(State::new(start, turn_right((1, 0))), Reverse(1000));
-    pq.push(State::new(start, turn_around((1, 0))), Reverse(2000));
+    all_orientations(State::new(start, (1, 0)), 0)
+        .into_iter()
+        .for_each(|(s, c)| {
+            pq.push(s, Reverse(c));
+        });
     let mut visited = HashSet::new();
-    while let Some((state, cost)) = pq.pop() {
+    while let Some((state, Reverse(cost))) = pq.pop() {
         if state.position == end {
-            return cost.0;
+            return cost;
         }
         if visited.contains(&state) {
             continue;
@@ -152,17 +173,13 @@ fn shortest_path_score(grid: &Grid, start: Position, end: Position) -> i64 {
         if grid.get(new_pos) == Cell::Wall {
             continue;
         }
-        let new_states = vec![
-            (State::new(new_pos, state.orientation), 1),
-            (State::new(new_pos, turn_right(state.orientation)), 1001),
-            (State::new(new_pos, turn_left(state.orientation)), 1001),
-            (State::new(new_pos, turn_around(state.orientation)), 2001),
-        ];
-        for (new_state, additional_cost) in new_states {
-            if !visited.contains(&new_state) {
-                pq.push_decrease(new_state, Reverse(cost.0 + additional_cost));
-            }
-        }
+        let new_states = all_orientations(State::new(new_pos, state.orientation), 1);
+        new_states
+            .iter()
+            .filter(|(s, _)| !visited.contains(s))
+            .for_each(|(s, c)| {
+                pq.push(s.clone(), Reverse(cost + c));
+            });
     }
     -1
 }
