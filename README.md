@@ -16,4 +16,5 @@ My solutions to Advent of Code 2024 in Rust.
 | 13  | missing | missing |
 | 14  | missing | missing |
 | 15  | [main.rs](day15a/src/main.rs) | [main.rs](day15b/src/main.rs) |
+| 16  | [main.rs](day16a/src/main.rs) | missing |
 
